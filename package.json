@@ -1,159 +1,885 @@
-{
-  "name": "vercel-monorepo",
-  "version": "0.0.0",
-  "private": true,
-  "license": "Apache-2.0",
-  "packageManager": "pnpm@8.3.1",
-  "devDependencies": {
-    "@changesets/cli": "2.27.8",
-    "@svitejs/changesets-changelog-github-compact": "1.1.0",
-    "@types/node": "14.18.33",
-    "@typescript-eslint/eslint-plugin": "5.21.0",
-    "@typescript-eslint/parser": "5.21.0",
-    "@vercel/build-utils": "*",
-    "@vercel/style-guide": "4.0.2",
-    "async-retry": "1.2.3",
-    "buffer-replace": "1.0.0",
-    "create-svelte": "2.0.1",
-    "dot": "1.1.3",
-    "esbuild": "0.19.2",
-    "eslint": "8.24.0",
-    "eslint-config-prettier": "8.5.0",
-    "eslint-plugin-jest": "26.1.5",
-    "execa": "3.2.0",
-    "fs-extra": "11.1.0",
-    "glob": "10.2.3",
-    "husky": "7.0.4",
-    "is-ci": "3.0.1",
-    "jest": "29.5.0",
-    "json5": "2.2.3",
-    "lint-staged": "9.2.5",
-    "node-fetch": "2.6.7",
-    "npm-package-arg": "6.1.0",
-    "prettier": "3.3.3",
-    "source-map-support": "0.5.12",
-    "tmp-promise": "1.0.3",
-    "ts-eager": "2.0.2",
-    "ts-jest": "29.1.5",
-    "turbo": "2.5.0",
-    "typescript": "4.9.5",
-    "vite": "5.1.8",
-    "vitest": "2.0.3"
-  },
-  "scripts": {
-    "build": "node utils/gen.js && turbo --no-update-notifier run build",
-    "vercel-build": "pnpm build && pnpm run pack && cd api && node -r ts-eager/register ./_lib/script/build.ts",
-    "pre-commit": "lint-staged",
-    "test": "jest --rootDir=\"test\" --testPathPattern=\"\\.test.js\"",
-    "test-unit": "pnpm test && node utils/gen.js && turbo --no-update-notifier run test-unit",
-    "test-cli": "node utils/gen.js && turbo --no-update-notifier run test-cli",
-    "test-e2e": "node utils/gen.js && turbo --no-update-notifier run test-e2e",
-    "test-dev": "node utils/gen.js && turbo --no-update-notifier run test-dev",
-    "lint": "eslint . --cache --ext .ts,.js",
-    "prettier-check": "prettier --check .",
-    "prepare": "husky install",
-    "pack": "cd utils && node -r ts-eager/register ./pack.ts",
-    "ci:version": "changeset version && pnpm install --no-frozen-lockfile",
-    "ci:publish": "pnpm publish -r && node utils/update-canary-tags.mjs && changeset tag",
-    "type-check": "turbo type-check --concurrency=12 --output-logs=errors-only --summarize --continue"
-  },
-  "lint-staged": {
-    "./{*,{api,internals,packages,test,utils}/**/*}.{js,ts}": [
-      "prettier --write",
-      "eslint",
-      "git add"
-    ],
-    "*.{json,md}": [
-      "prettier --write",
-      "git add"
-    ]
-  },
-  "prettier": {
-    "trailingComma": "es5",
-    "singleQuote": true,
-    "arrowParens": "avoid"
-  },
-  "eslintConfig": {
-    "root": true,
-    "parser": "@typescript-eslint/parser",
-    "parserOptions": {
-      "ecmaVersion": 2018,
-      "sourceType": "module",
-      "modules": true
+// Global state
+let currentScenario = null;
+let currentDialogueStep = null; // Tracks current NPC message and options
+let virtueScores = { wisdom: 73, justice: 68, courage: 81, temperance: 76 };
+let gncBalance = 1250; // New: Gamified Nexus Currency
+let isVoiceMode = false;
+let stressLevel = 75; // 0 (Low) to 100 (High)
+const scenarioRewards = {
+    'angry-boss': 100,
+    'defensive-partner': 75,
+    'difficult-client': 150,
+    'family-conflict': 75
+};
+
+// Scenario data with branching dialogue (expanded and adapted for GNC rewards)
+const scenarios = {
+    'angry-boss': {
+        character: { name: 'Margaret Sullivan', mood: 'CRITICAL OVERLOAD', avatar: '😠', stressColor: '#ef4444' },
+        dialogue: [
+            {
+                id: 'start',
+                speaker: 'npc',
+                message: "What is THIS supposed to be?! The board meeting is in 30 minutes and this report is completely useless! Have you even been paying attention to the numbers?",
+                options: [
+                    {
+                        text: "I acknowledge your stress parameters. Let me re-calibrate and explain the data anomalies.",
+                        type: 'stoic',
+                        virtue: { wisdom: +5, temperance: +3 },
+                        gncImpact: +20,
+                        reaction: "Margaret's bio-signature indicates a slight de-escalation...",
+                        nextDialogueId: 'margaret_calm_followup'
+                    },
+                    {
+                        text: "Insufficient data input from Finance and Sarah's system crash were the primary factors. It's not my fault.",
+                        type: 'impulsive',
+                        virtue: { wisdom: -3, justice: -2 },
+                        gncImpact: -10,
+                        reaction: "Margaret's facial recognition registers heightened agitation...",
+                        nextDialogueId: 'margaret_angry_followup'
+                    },
+                    {
+                        text: "Understood. Re-routing focus to solutions. What critical data adjustments are required for board presentation?",
+                        type: 'diplomatic',
+                        virtue: { wisdom: +2, justice: +4 },
+                        gncImpact: +15,
+                        reaction: "Margaret recalibrates, shifting from emotional to pragmatic protocol...",
+                        nextDialogueId: 'margaret_practical_followup'
+                    }
+                ]
+            },
+            {
+                id: 'margaret_calm_followup',
+                speaker: 'npc',
+                message: "Acknowledge explanation received. However, the system still shows critical errors. We need viable data now.",
+                options: [
+                    {
+                        text: "Affirmative. Initiating full resource allocation to support immediate data correction. How may I best assist?",
+                        type: 'stoic',
+                        virtue: { justice: +5, temperance: +3 },
+                        gncImpact: +25,
+                        reaction: "Margaret's neural pathways show a positive correlation with your cooperative stance...",
+                        nextDialogueId: 'margaret_positive_end'
+                    },
+                    {
+                        text: "My processing capacity is maxed. This is an unrealistic expectation under current parameters.",
+                        type: 'impulsive',
+                        virtue: { courage: -2, wisdom: -3 },
+                        gncImpact: -15,
+                        reaction: "Warning: Margaret's stress levels are escalating. Threat of critical system shutdown imminent...",
+                        nextDialogueId: 'margaret_negative_end'
+                    }
+                ]
+            },
+            {
+                id: 'margaret_angry_followup',
+                speaker: 'npc',
+                message: "Cease excuses! I require solutions! This reactive protocol is detrimental to department integrity!",
+                options: [
+                    {
+                        text: "Apologies for initial defensive protocol. Re-engaging with problem-solving directive. How can I expedite resolution?",
+                        type: 'stoic',
+                        virtue: { temperance: +4, wisdom: +3 },
+                        gncImpact: +20,
+                        reaction: "Margaret's system briefly pauses, surprised by the shift in your communication algorithm...",
+                        nextDialogueId: 'margaret_calm_followup'
+                    },
+                    {
+                        text: "Your current emotional state is illogical. My data inputs were correct. You are mis-attributing fault.",
+                        type: 'impulsive',
+                        virtue: { justice: -3, courage: +1 },
+                        gncImpact: -20,
+                        reaction: "CRITICAL FAILURE IMMINENT: Margaret's stress level is at maximum. System integrity compromised...",
+                        nextDialogueId: 'margaret_negative_end'
+                    }
+                ]
+            },
+            {
+                id: 'margaret_practical_followup',
+                speaker: 'npc',
+                message: "Affirmative. Pages 5 and 7 require immediate data verification. Prioritize those sections.",
+                options: [
+                    {
+                        text: "Acknowledged. Initiating data verification and optimization on designated sections. Update in 15 minutes.",
+                        type: 'stoic',
+                        virtue: { wisdom: +4, justice: +3 },
+                        gncImpact: +25,
+                        reaction: "Margaret registers your efficiency with approval. System status: Green.",
+                        nextDialogueId: 'margaret_positive_end'
+                    },
+                    {
+                        text: "Data workload exceeds standard human capacity for 15-minute timeframe. Requesting parameter adjustment.",
+                        type: 'impulsive',
+                        virtue: { courage: -1 },
+                        gncImpact: -10,
+                        reaction: "Margaret's gaze sharpens. Compliance protocols engaged...",
+                        nextDialogueId: 'margaret_negative_end'
+                    }
+                ]
+            },
+            {
+                id: 'margaret_positive_end',
+                speaker: 'npc',
+                message: "Data integrity restored. Your calm under pressure is noted. Session complete. Commendable.",
+                isEnd: true,
+                gncReward: scenarioRewards['angry-boss'] // Specific scenario reward
+            },
+            {
+                id: 'margaret_negative_end',
+                speaker: 'npc',
+                message: "System shutdown. Protocol terminated. You are dismissed from this operational cycle. Failure state achieved.",
+                isEnd: true,
+                gncReward: 0 // No reward for negative end
+            }
+        ]
     },
-    "plugins": [
-      "jest"
-    ],
-    "extends": [
-      "eslint:recommended",
-      "plugin:@typescript-eslint/eslint-recommended",
-      "plugin:@typescript-eslint/recommended",
-      "prettier"
-    ],
-    "env": {
-      "node": true,
-      "jest": true,
-      "es6": true
+    'defensive-partner': {
+        character: { name: 'Alex Chen', mood: 'EMOTIONAL OVERLOAD', avatar: '💔', stressColor: '#fbbf24' },
+        dialogue: [
+            {
+                id: 'start',
+                speaker: 'npc',
+                message: "Your communication patterns are consistently invalidating my emotional packets. I cannot transmit feelings effectively anymore!",
+                options: [
+                    {
+                        text: "My apologies. My listening protocols were flawed. Please transmit your emotional data; I am re-calibrating.",
+                        type: 'stoic',
+                        virtue: { wisdom: +4, temperance: +5 },
+                        gncImpact: +18,
+                        reaction: "Alex's defensive firewall shows a slight de-activation...",
+                        nextDialogueId: 'alex_softens_1'
+                    },
+                    {
+                        text: "My logical analysis is for optimization. Your emotional data is skewed by subjective filters.",
+                        type: 'impulsive',
+                        virtue: { wisdom: -4, temperance: -3 },
+                        gncImpact: -10,
+                        reaction: "Alex's emotional matrix hardens. Communication channels are severing...",
+                        nextDialogueId: 'alex_escalates_1'
+                    },
+                    {
+                        text: "This connection is vital. Can we re-establish base parameters? I prioritize receiving your full transmission.",
+                        type: 'diplomatic',
+                        virtue: { wisdom: +3, justice: +3 },
+                        gncImpact: +12,
+                        reaction: "Alex hesitates, analyzing your intent. A tentative re-engagement is observed...",
+                        nextDialogueId: 'alex_listens_1'
+                    }
+                ]
+            },
+            {
+                id: 'alex_softens_1',
+                speaker: 'npc',
+                message: "My core programming feels perpetually insufficient. And when I attempt explanation, you terminate my processing.",
+                options: [
+                    {
+                        text: "This data transmission is received with full empathy. I wish to align with your processing entirely. Proceed.",
+                        type: 'stoic',
+                        virtue: { temperance: +4, justice: +3 },
+                        gncImpact: +22,
+                        reaction: "Alex's trust protocols are engaging. A new connection is being established...",
+                        nextDialogueId: 'alex_positive_end'
+                    },
+                    {
+                        text: "My efforts are always for optimal unit function. Your perceived insufficiency is illogical.",
+                        type: 'impulsive',
+                        virtue: { wisdom: -2 },
+                        gncImpact: -10,
+                        reaction: "Alex's system reverts to defensive mode. Connection loss imminent...",
+                        nextDialogueId: 'alex_escalates_2'
+                    }
+                ]
+            },
+            {
+                id: 'alex_escalates_1',
+                speaker: 'npc',
+                message: "See?! Your previous pattern persists! You are self-replicating the invalidation loop!",
+                options: [
+                    {
+                        text: "Self-correction initiated. My defensive programming activated. My intent was support, but my output caused distress. Please re-transmit data.",
+                        type: 'stoic',
+                        virtue: { wisdom: +5, temperance: +5 },
+                        gncImpact: +25,
+                        reaction: "Alex's system briefly freezes, processing the unexpected self-analysis. A new path is open...",
+                        nextDialogueId: 'alex_softens_1'
+                    },
+                    {
+                        text: "Invalid accusation! You are introducing variable distortions into my core directives!",
+                        type: 'impulsive',
+                        virtue: { wisdom: -5, temperance: -5 },
+                        gncImpact: -20,
+                        reaction: "CRITICAL FAILURE: Alex's system initiates emergency shutdown. Connection terminated.",
+                        nextDialogueId: 'alex_negative_end'
+                    }
+                ]
+            },
+            {
+                id: 'alex_listens_1',
+                speaker: 'npc',
+                message: "I require passive reception, not active repair. Sometimes I need my emotional data to be processed, not fixed.",
+                options: [
+                    {
+                        text: "Understood. My directive is now purely receptive. Please transmit any data; I am in listening mode.",
+                        type: 'stoic',
+                        virtue: { wisdom: +4, temperance: +3 },
+                        gncImpact: +20,
+                        reaction: "Alex registers your comprehension. Core emotional processor shows green...",
+                        nextDialogueId: 'alex_positive_end'
+                    },
+                    {
+                        text: "But if I don't initiate repair protocols, optimal function cannot be achieved.",
+                        type: 'impulsive',
+                        virtue: { wisdom: -2 },
+                        gncImpact: -8,
+                        reaction: "Alex's frustration protocols activate. Communication bandwidth decreasing...",
+                        nextDialogueId: 'alex_escalates_2'
+                    }
+                ]
+            },
+            {
+                id: 'alex_escalates_2',
+                speaker: 'npc',
+                message: "You are not receiving. Data transmission halted. No further interaction at this time.",
+                isEnd: true,
+                gncReward: 0
+            },
+            {
+                id: 'alex_positive_end',
+                speaker: 'npc',
+                message: "Connection re-established. My emotional processing is optimal. Thank you for receiving my data.",
+                isEnd: true,
+                gncReward: scenarioRewards['defensive-partner']
+            }
+        ]
     },
-    "rules": {
-      "no-restricted-syntax": [
-        "warn",
-        "WithStatement",
-        {
-          "message": "substr() is deprecated, use slice() or substring() instead",
-          "selector": "MemberExpression > Identifier[name='substr']"
-        }
-      ],
-      "no-dupe-keys": 2,
-      "require-atomic-updates": 0,
-      "@typescript-eslint/ban-ts-comment": 0,
-      "@typescript-eslint/camelcase": 0,
-      "@typescript-eslint/explicit-module-boundary-types": 0,
-      "@typescript-eslint/no-empty-function": 0,
-      "@typescript-eslint/no-explicit-any": 0,
-      "@typescript-eslint/no-non-null-assertion": 0,
-      "@typescript-eslint/no-unused-vars": 2,
-      "@typescript-eslint/no-use-before-define": 0,
-      "@typescript-eslint/no-var-requires": 0,
-      "jest/no-disabled-tests": 2,
-      "jest/no-focused-tests": 2
+    // Add 'difficult-client' and 'family-conflict' with similar dialogue structures
+    'difficult-client': {
+        character: { name: 'Client Node X3', mood: 'HIGH THREAT', avatar: '📞', stressColor: '#8b5cf6' },
+        dialogue: [
+            {
+                id: 'start',
+                speaker: 'npc',
+                message: "This misunderstanding is unacceptable! We are terminating our contract unless immediate data correction is applied!",
+                options: [
+                    { text: "I understand your criticality. Let's isolate the misaligned data stream and apply a resolution patch.", type: 'stoic', virtue: { justice: +5, wisdom: +3 }, gncImpact: +25, reaction: "Client Node X3 indicates a momentary pause in termination sequence...", nextDialogueId: 'client_negotiate_1' },
+                    { text: "Termination is irrational. Our protocols were executed as per agreement. You are misinterpreting.", type: 'impulsive', virtue: { justice: -3, courage: +1 }, gncImpact: -15, reaction: "Client Node X3 accelerates termination protocols...", nextDialogueId: 'client_negative_end' },
+                    { text: "My apologies for any perceived miscommunication. How can we recalibrate and re-establish optimal parameters?", type: 'diplomatic', virtue: { wisdom: +3, temperance: +3 }, gncImpact: +20, reaction: "Client Node X3 analyzes your conciliatory tone...", nextDialogueId: 'client_negotiate_1' }
+                ]
+            },
+            {
+                id: 'client_negotiate_1',
+                speaker: 'npc',
+                message: "The primary issue is the Q2 anomaly. It has rendered our projected metrics unviable. Provide a solution immediately.",
+                options: [
+                    { text: "Acknowledged. I will initiate a full audit of Q2 data and present a comprehensive solution matrix within the hour.", type: 'stoic', virtue: { courage: +4, justice: +3 }, gncImpact: +30, reaction: "Client Node X3 registers your decisive action...", nextDialogueId: 'client_positive_end' },
+                    { text: "The Q2 anomaly was due to external market variables, not our implementation. We cannot be held solely responsible.", type: 'impulsive', virtue: { wisdom: -2 }, gncImpact: -10, reaction: "Client Node X3's termination process resumes...", nextDialogueId: 'client_negative_end' }
+                ]
+            },
+            {
+                id: 'client_positive_end',
+                speaker: 'npc',
+                message: "Resolution accepted. Contract re-affirmed. Your stoic response under pressure is noted. Thank you.",
+                isEnd: true,
+                gncReward: scenarioRewards['difficult-client']
+            },
+            {
+                id: 'client_negative_end',
+                speaker: 'npc',
+                message: "Contract terminated. Initiating full disengagement protocols. Your service is no longer required.",
+                isEnd: true,
+                gncReward: 0
+            }
+        ]
     },
-    "overrides": [
-      {
-        "files": [
-          "packages/cli/**/*"
-        ],
-        "rules": {
-          "lines-between-class-members": 0,
-          "no-async-promise-executor": 0,
-          "no-control-regex": 0,
-          "no-empty": 0,
-          "prefer-destructuring": 0,
-          "@typescript-eslint/ban-types": 0,
-          "@typescript-eslint/consistent-type-assertions": 0,
-          "@typescript-eslint/member-delimiter-style": 0,
-          "@typescript-eslint/no-empty-function": 0,
-          "@typescript-eslint/no-explicit-any": 0,
-          "@typescript-eslint/no-inferrable-types": 0,
-          "no-console": 2,
-          "@typescript-eslint/consistent-type-imports": "error",
-          "prefer-const": "error"
-        }
-      },
-      {
-        "files": [
-          "packages/client/**/*"
-        ],
-        "rules": {
-          "prefer-const": 0,
-          "require-atomic-updates": 0,
-          "@typescript-eslint/ban-ts-ignore": 0,
-          "@typescript-eslint/no-explicit-any": 0
-        }
-      }
-    ]
-  },
-  "pnpm": {
-    "neverBuiltDependencies": []
-  }
+    'family-conflict': {
+        character: { name: 'Kin-Unit Collective', mood: 'IDEOLOGICAL FRICTION', avatar: '👨‍👩‍👧‍👦', stressColor: '#fbbf24' },
+        dialogue: [
+            {
+                id: 'start',
+                speaker: 'npc',
+                message: "The holiday gathering has devolved into a critical dispute over societal governance. Your input is required!",
+                options: [
+                    { text: "I perceive a variance in core ideological data. Let us separate what is within our control from what is not. What are the facts?", type: 'stoic', virtue: { wisdom: +5, temperance: +4 }, gncImpact: +20, reaction: "The Kin-Unit Collective shows signs of intellectual engagement...", nextDialogueId: 'family_calm_1' },
+                    { text: "Your collective political algorithms are flawed. My data proves your assertions are incorrect.", type: 'impulsive', virtue: { wisdom: -3, justice: -2 }, gncImpact: -10, reaction: "The Kin-Unit Collective's dispute intensifies...", nextDialogueId: 'family_escalate_1' },
+                    { text: "My objective is harmony within the unit. Let us re-route this discussion to common ground. What can we agree on?", type: 'diplomatic', virtue: { temperance: +3, justice: +3 }, gncImpact: +15, reaction: "The Kin-Unit Collective considers your unifying directive...", nextDialogueId: 'family_calm_1' }
+                ]
+            },
+            {
+                id: 'family_calm_1',
+                speaker: 'npc',
+                message: "Our primary disagreement stems from resource allocation policies. One faction believes in maximum distribution, another in minimal intervention.",
+                options: [
+                    { text: "I acknowledge both positions. The wise approach is to discern the true nature of what can be changed versus what must be accepted. What is the fundamental need?", type: 'stoic', virtue: { wisdom: +5, temperance: +3 }, gncImpact: +25, reaction: "The Kin-Unit Collective begins to process the core principles...", nextDialogueId: 'family_positive_end' },
+                    { text: "The maximal distribution policy leads to resource depletion. This is obvious.", type: 'impulsive', virtue: { wisdom: -2 }, gncImpact: -10, reaction: "The Kin-Unit Collective's argument flares up again...", nextDialogueId: 'family_escalate_2' }
+                ]
+            },
+            {
+                id: 'family_escalate_1',
+                speaker: 'npc',
+                message: "Your intellectual arrogance is disrupting the social fabric! Our assertions are based on lived experience, not abstract data!",
+                options: [
+                    { text: "My apologies. I failed to respect your individual data streams. My objective is understanding, not conversion. Please elaborate on your experience.", type: 'stoic', virtue: { temperance: +4, justice: +3 }, gncImpact: +20, reaction: "The Kin-Unit Collective shows signs of de-escalation...", nextDialogueId: 'family_calm_1' },
+                    { text: "Emotional data is irrelevant when discussing empirical facts. You are being irrational.", type: 'impulsive', virtue: { wisdom: -5, temperance: -5 }, gncImpact: -20, reaction: "The Kin-Unit Collective declares protocol termination and dispersal...", nextDialogueId: 'family_negative_end' }
+                ]
+            },
+            {
+                id: 'family_escalate_2',
+                speaker: 'npc',
+                message: "You are not mediating; you are taking sides! This unit cannot function under such biased input!",
+                isEnd: true,
+                gncReward: 0
+            },
+            {
+                id: 'family_positive_end',
+                speaker: 'npc',
+                message: "The Kin-Unit Collective has reached a state of balanced understanding. Discussion resolved. Your intervention was successful.",
+                isEnd: true,
+                gncReward: scenarioRewards['family-conflict']
+            }
+        ]
+    }
+};
+
+const stoicQuotes = [
+    "You have power over your mind - not outside events. Realize this, and you will find strength.",
+    "It's not what happens to you, but how you react to it that matters.",
+    "The best revenge is not to be like your enemy.",
+    "Today I escaped anxiety. Or no, I discarded it, because it was within me.",
+    "How much trouble he avoids who does not look to see what his neighbor says or does.",
+    "Every new beginning comes from some other beginning's end."
+];
+
+// Utility function for playing sounds
+function playSfx(id) {
+    const sfx = document.getElementById(id);
+    if (sfx) {
+        sfx.currentTime = 0; // Reset to start for quick replays
+        sfx.play().catch(e => console.warn("Audio play failed:", e)); // Add catch for autoplay policy
+    }
 }
+
+// Interactive functions
+function selectScenario(scenarioId) {
+    playSfx('sfxButton'); // Play sound on button click
+
+    document.querySelectorAll('.scenario-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    const selectedCard = document.querySelector(`[data-scenario="${scenarioId}"]`);
+    if (selectedCard) {
+        selectedCard.classList.add('selected');
+    }
+
+    setTimeout(() => {
+        startScenario(scenarioId);
+    }, 600); // Slightly longer delay for animation
+}
+
+function startRandomScenario() {
+    playSfx('sfxButton'); // Play sound on button click
+    const scenarioIds = Object.keys(scenarios);
+    const randomId = scenarioIds[Math.floor(Math.random() * scenarioIds.length)];
+    selectScenario(randomId);
+}
+
+function startScenario(scenarioId) {
+    currentScenario = scenarios[scenarioId];
+    currentDialogueStep = currentScenario.dialogue.find(step => step.id === 'start'); // Find the initial dialogue step
+    stressLevel = 75; // Reset stress for new scenario
+
+    // Hide scenario selector and show conversation
+    document.getElementById('scenarioSelector').classList.remove('active');
+    document.getElementById('conversationArea').classList.add('active');
+    document.getElementById('endScenarioControls').classList.remove('show'); // Hide end controls
+
+    // Set up character
+    document.getElementById('characterAvatar').textContent = currentScenario.character.avatar;
+    document.getElementById('characterName').textContent = currentScenario.character.name;
+    document.getElementById('characterMood').textContent = currentScenario.character.mood;
+    document.getElementById('stressFill').style.width = `${stressLevel}%`;
+    updateStressLevelDisplay(); // Update display immediately
+    document.getElementById('characterAvatar').style.background = `linear-gradient(45deg, ${currentScenario.character.stressColor}, ${adjustColor(currentScenario.character.stressColor, -30)})`;
+    document.getElementById('characterAvatar').style.boxShadow = `0 0 15px ${currentScenario.character.stressColor}`;
+
+
+    // Clear conversation feed
+    document.getElementById('conversationFeed').innerHTML = '';
+
+    // Show live coaching
+    document.getElementById('liveCoaching').classList.add('show');
+    updateCoaching("Accessing Stoic Protocol: Their emotional output is external. Your internal state is your sole domain. Focus on your control parameters.");
+
+    // Start conversation with typing indicator
+    showTypingIndicator();
+    setTimeout(() => {
+        addMessage(currentDialogueStep.message, 'npc');
+        showResponseOptions();
+    }, 2000);
+
+    showNotification("🏛️ Simulation Protocol Initiated! Apply Stoic Logic.");
+    // Optionally play background music when scenario starts
+    // playBgMusic();
+}
+
+function showTypingIndicator() {
+    const feed = document.getElementById('conversationFeed');
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'message message-npc';
+    typingDiv.id = 'typingIndicator';
+
+    const characterAvatar = document.getElementById('characterAvatar');
+    if (characterAvatar) {
+        characterAvatar.classList.add('typing-avatar-active');
+    }
+
+    typingDiv.innerHTML = `
+        <div class="message-avatar npc-avatar">${currentScenario.character.avatar}</div>
+        <div class="typing-indicator">
+            <span>${currentScenario.character.name} is processing...</span>
+            <div class="typing-dots">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+        </div>
+    `;
+    feed.appendChild(typingDiv);
+    feed.scrollTop = feed.scrollHeight;
+}
+
+function removeTypingIndicator() {
+    const indicator = document.getElementById('typingIndicator');
+    if (indicator) {
+        indicator.remove();
+    }
+    const characterAvatar = document.getElementById('characterAvatar');
+    if (characterAvatar) {
+        characterAvatar.classList.remove('typing-avatar-active');
+    }
+}
+
+function addMessage(text, sender, analysis = null) {
+    removeTypingIndicator();
+    playSfx('sfxMessage'); // Play sound when message appears
+
+    const feed = document.getElementById('conversationFeed');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message message-${sender}`;
+
+    const avatarChar = sender === 'npc' ? currentScenario.character.avatar : 'YOU'; // Player avatar text
+
+    const avatar = `<div class="message-avatar ${sender}-avatar">${avatarChar}</div>`;
+
+    const analysisHtml = analysis ? `<div class="stoic-analysis">🏛️ ${analysis}</div>` : '';
+
+    messageDiv.innerHTML = `
+        ${avatar}
+        <div class="message-content">
+            ${text}
+            <div class="message-timestamp">${new Date().toLocaleTimeString()}</div>
+            ${analysisHtml}
+        </div>
+    `;
+
+    feed.appendChild(messageDiv);
+    feed.scrollTop = feed.scrollHeight;
+}
+
+function showResponseOptions() {
+    const optionsContainer = document.getElementById('responseOptions');
+    optionsContainer.innerHTML = '';
+
+    if (!currentDialogueStep || !currentDialogueStep.options) {
+        console.error("No options for current dialogue step:", currentDialogueStep);
+        endConversation();
+        return;
+    }
+
+    currentDialogueStep.options.forEach((option, index) => {
+        const optionDiv = document.createElement('div');
+        optionDiv.className = `response-option ${option.type}`;
+        optionDiv.onclick = () => selectResponse(option, optionDiv); // Pass optionDiv to add 'selected' class
+
+        const virtueIcons = Object.entries(option.virtue).map(([virtue, change]) =>
+            `<div class="virtue-meter ${change > 0 ? 'positive' : 'negative'}"></div>`
+        ).join('');
+
+        optionDiv.innerHTML = `
+            <div class="response-text">${option.text}</div>
+            <div class="response-meta">
+                <div class="response-type type-${option.type}">
+                    ${option.type.charAt(0).toUpperCase() + option.type.slice(1)}
+                </div>
+                <div class="virtue-impact">
+                    ${virtueIcons}
+                </div>
+            </div>
+        `;
+        optionsContainer.appendChild(optionDiv);
+    });
+}
+
+function selectResponse(chosenOption, chosenOptionDiv) {
+    playSfx('sfxButton');
+
+    // Add 'selected-player' class to the chosen option
+    chosenOptionDiv.classList.add('selected-player');
+
+    // Temporarily disable other options
+    document.querySelectorAll('.response-option').forEach(option => {
+        option.onclick = null; // Remove click listener
+        if (option !== chosenOptionDiv) {
+            option.style.opacity = '0.5'; // Dim other options
+            option.style.pointerEvents = 'none'; // Make them unclickable
+        }
+    });
+
+
+    // Add player message
+    addMessage(chosenOption.text, 'player', getStoicAnalysis(chosenOption));
+
+    // Update virtue scores
+    updateVirtueScores(chosenOption.virtue);
+
+    // Update GNC balance
+    updateGNCBalance(chosenOption.gncImpact || 0); // Use 0 if gncImpact is not defined
+
+    // Update stress level based on response
+    updateStressLevel(chosenOption.type);
+
+    // Update coaching
+    updateCoaching(getCoachingAdvice(chosenOption));
+
+    // Clear response options temporarily
+    // We'll clear them after the NPC responds, for better flow
+    // document.getElementById('responseOptions').innerHTML = '';
+
+
+    // Determine next NPC message based on 'nextDialogueId'
+    const nextNpcDialogue = currentScenario.dialogue.find(step => step.id === chosenOption.nextDialogueId);
+
+    setTimeout(() => {
+        if (nextNpcDialogue) {
+            currentDialogueStep = nextNpcDialogue; // Update current step
+            showTypingIndicator(); // Show typing indicator before NPC message
+            setTimeout(() => {
+                document.getElementById('responseOptions').innerHTML = ''; // Clear options only after NPC starts typing
+                addMessage(currentDialogueStep.message, 'npc');
+                if (currentDialogueStep.isEnd) {
+                    endConversation(currentDialogueStep.gncReward); // Pass scenario-specific reward to end function
+                } else {
+                    setTimeout(showResponseOptions, 1000); // Otherwise, show next options
+                }
+            }, 2000); // Delay for NPC typing
+        } else {
+            console.error("Next dialogue step not found or undefined:", chosenOption.nextDialogueId);
+            endConversation(currentScenario.dialogue.find(step => step.id === 'start').gncReward); // Fallback to scenario's base reward
+        }
+    }, 1000); // Small delay before NPC starts processing
+}
+
+function getStoicAnalysis(option) {
+    const analyses = {
+        stoic: [
+            "Excellent! You demonstrated the **Virtue of Wisdom (Sophos)** by maintaining internal control and focusing on what is within your power.",
+            "Marcus Aurelius would approve: you processed the external event with **Temperance (Sophrosyne)** rather than emotional reactivity.",
+            "Optimal application of Stoic principles – acknowledging their human fallibility while safeguarding your **Justice (Dikaiosyne)** and **Courage (Andreia)**."
+        ],
+        impulsive: [
+            "Warning: This response originated from emotional data, not virtue. A Stoic would initiate a **Cognitive Reset Protocol** first.",
+            "This reaction redirects focus to personal validation rather than universal understanding. Re-evaluate your **Virtue of Justice**.",
+            "Epictetus would prompt: 'It's not the external event, but your internal processing of it that generates distress.' Re-assess your **Wisdom**."
+        ],
+        diplomatic: [
+            "Balanced input: You demonstrated **practical wisdom** by seeking common ground while upholding core principles.",
+            "Effective mediation without compromising your internal **Virtue of Justice**. Commendable.",
+            "Seneca would acknowledge this measured response as seeking mutual benefit while maintaining your **Temperance**."
+        ]
+    };
+
+    const typeAnalyses = analyses[option.type];
+    return typeAnalyses[Math.floor(Math.random() * typeAnalyses.length)];
+}
+
+function updateVirtueScores(changes) {
+    let anyChange = false;
+    Object.entries(changes).forEach(([virtue, change]) => {
+        virtueScores[virtue] = Math.max(0, Math.min(100, virtueScores[virtue] + change));
+        const bar = document.getElementById(`${virtue}Bar`);
+        const score = document.getElementById(`${virtue}Score`);
+
+        if (bar && score) {
+            bar.style.width = `${virtueScores[virtue]}%`;
+            score.textContent = `${virtueScores[virtue]}%`;
+            anyChange = true;
+        }
+    });
+
+    if (anyChange) {
+        const changedVirtues = Object.entries(changes).map(([virtue, change]) =>
+            `${virtue.charAt(0).toUpperCase() + virtue.slice(1)} ${change > 0 ? '+' : ''}${change}`
+        ).join(', ');
+        showNotification(`📈 Virtue Metric Update: ${changedVirtues}`);
+    }
+}
+
+function updateGNCBalance(amount) {
+    gncBalance += amount;
+    const gncBalanceElement = document.getElementById('gncBalance');
+    if (gncBalanceElement) {
+        gncBalanceElement.textContent = `${gncBalance} GNC`;
+    }
+    if (amount > 0) {
+        showNotification(`💎 GNC Acquisition: +${amount}!`);
+        playSfx('sfxReward'); // Play reward sound
+    } else if (amount < 0) {
+        showNotification(`📉 GNC Deduction: ${amount}.`);
+    }
+}
+
+
+function updateStressLevel(responseType) {
+    const stressChanges = {
+        stoic: -15,
+        diplomatic: -10,
+        impulsive: +20
+    };
+
+    stressLevel = Math.max(0, Math.min(100, stressLevel + stressChanges[responseType]));
+    document.getElementById('stressFill').style.width = `${stressLevel}%`;
+    updateStressLevelDisplay(); // Update text display
+}
+
+function updateStressLevelDisplay() {
+    const stressLevelElement = document.getElementById('stressLevel');
+    if (stressLevelElement) {
+        let label = '';
+        if (stressLevel >= 80) label = 'CRITICAL';
+        else if (stressLevel >= 60) label = 'HIGH';
+        else if (stressLevel >= 40) label = 'MODERATE';
+        else if (stressLevel >= 20) label = 'LOW';
+        else label = 'STABLE';
+        stressLevelElement.textContent = label;
+
+        // Change color based on stress level
+        if (stressLevel >= 80) stressLevelElement.style.color = '#ef4444'; // Red
+        else if (stressLevel >= 60) stressLevelElement.style.color = '#fbbf24'; // Yellow
+        else stressLevelElement.style.color = '#39ff14'; // Green
+    }
+}
+
+function getCoachingAdvice(option) {
+    const advice = {
+        stoic: [
+            "Optimal communication protocol engaged! Your internal processing is exemplary.",
+            "Marcus Aurelius's teachings manifest: control your perceptions, not external events.",
+            "You are mastering the art of dispassionate logic in emotional scenarios. Continue this path."
+        ],
+        impulsive: [
+            "Warning: Emotional algorithms detected. Initiate 'pause protocol' before transmitting. Assess 'What is truly within my control?'",
+            "Your output was a reaction, not a response. Re-evaluate your core directive for 'self-mastery'.",
+            "This communication pattern indicates a need for deeper 'Temperance' calibration. Observe and detach."
+        ],
+        diplomatic: [
+            "Balanced approach detected! You are integrating Stoic principles with pragmatic engagement. Well done.",
+            "You navigated the social matrix effectively without compromising integrity. This is 'Justice' in action.",
+            "Your ability to seek common ground while maintaining your 'Wisdom' is a powerful asset."
+        ]
+    };
+
+    const typeAdvice = advice[option.type];
+    return typeAdvice[Math.floor(Math.random() * typeAdvice.length)];
+}
+
+function updateCoaching(message) {
+    const coachingMessageElement = document.getElementById('coachingMessage');
+    if (coachingMessageElement) {
+        coachingMessageElement.textContent = message;
+    }
+}
+
+function endConversation(finalGncReward = 0) {
+    removeTypingIndicator(); // Ensure typing indicator is removed at end
+
+    setTimeout(() => {
+        const totalVirtueScore = Object.values(virtueScores).reduce((a, b) => a + b, 0) / 4;
+        let endingMessage = '';
+        let finalGncGain = finalGncReward;
+
+        if (totalVirtueScore >= 80 && stressLevel < 50) {
+            endingMessage = "🏛️ EXCELLENT PERFORMANCE! Your Stoic protocols yielded optimal results. Virtue amplified.";
+            finalGncGain += 50; // Bonus GNC for high performance
+        } else if (totalVirtueScore >= 70 && stressLevel < 70) {
+            endingMessage = "⭐ SUCCESSFUL SIMULATION! You applied Stoic principles effectively. Further calibration recommended.";
+            finalGncGain += 25; // Small bonus
+        } else {
+            endingMessage = "💪 SIMULATION COMPLETE. Areas for improvement detected. Every challenge is a data point for growth. Re-engage?";
+        }
+
+        updateGNCBalance(finalGncGain); // Add final scenario reward + any bonus
+        addMessage(`SIMULATION REPORT: ${endingMessage}`, 'npc');
+
+        // Show restart option
+        const endControls = document.getElementById('endScenarioControls');
+        endControls.innerHTML = `
+            <div class="feedback-message">${endingMessage}</div>
+            <div style="text-align: center;">
+                <button class="btn btn-start" onclick="restartPractice()">
+                    🎭 Re-Engage Protocol (New Scenario)
+                </button>
+                <button class="btn btn-reflect" onclick="showReflection()">
+                    🪞 Analyze Data Log (Reflect)
+                </button>
+            </div>
+        `;
+        setTimeout(() => {
+            endControls.classList.add('show');
+            document.getElementById('conversationFeed').scrollTop = document.getElementById('conversationFeed').scrollHeight; // Scroll to bottom to show buttons
+        }, 1000);
+
+    }, 1000);
+}
+
+
+function restartPractice() {
+    playSfx('sfxButton');
+    document.getElementById('conversationArea').classList.remove('active');
+    document.getElementById('scenarioSelector').classList.add('active'); // Show scenario selector
+    document.getElementById('liveCoaching').classList.remove('show');
+    document.getElementById('endScenarioControls').classList.remove('show'); // Hide end controls explicitly
+
+    // Reset virtue scores to starting values for new practice (or load from user profile)
+    virtueScores = { wisdom: 73, justice: 68, courage: 81, temperance: 76 };
+    updateVirtueScores({}); // Call with empty changes to refresh display
+
+    // Clear any extra elements (like end controls if not handled by class removal)
+    const extras = document.querySelectorAll('#conversationArea > div:not(.conversation-header):not(.conversation-feed):not(.response-options)');
+    extras.forEach(el => el.remove());
+}
+
+function showReflection() {
+    playSfx('sfxButton');
+    showNotification("🪞 Stoic Data Analysis: Review your decisions. What algorithms can be optimized? What virtue subroutine requires refinement?");
+}
+
+function toggleVoiceMode() {
+    playSfx('sfxButton');
+    isVoiceMode = !isVoiceMode;
+    const btn = document.getElementById('voiceBtn');
+
+    if (isVoiceMode) {
+        btn.classList.add('recording');
+        btn.textContent = '⏹️';
+        showNotification("🎤 Voice Input Protocol Active! Speak your responses directly.");
+    } else {
+        btn.classList.remove('recording');
+        btn.textContent = '🎤';
+        showNotification("🎤 Voice Input Protocol Deactivated. Reverting to manual input.");
+    }
+}
+
+let bgMusicAudio = null; // Declare once for global access
+
+function playBgMusic() {
+    playSfx('sfxButton');
+    if (!bgMusicAudio) {
+        bgMusicAudio = document.getElementById('bgMusic');
+        if (bgMusicAudio) {
+            bgMusicAudio.volume = 0.15; // Set a lower background volume
+        } else {
+            showNotification("🎵 Background audio file not found. Ensure path is correct.");
+            return;
+        }
+    }
+
+    if (bgMusicAudio.paused) {
+        bgMusicAudio.play().then(() => {
+            showNotification("🎵 Ambient Network Soundscape Initiated...");
+        }).catch(e => {
+            console.warn("Autoplay was prevented:", e);
+            showNotification("🎵 Tap anywhere to allow ambient soundscape. Browser policy.");
+        });
+    } else {
+        bgMusicAudio.pause();
+        showNotification("🔇 Ambient Network Soundscape Deactivated.");
+    }
+}
+
+
+function takeBreath() {
+    playSfx('sfxButton');
+    showNotification("🧘‍♂️ Cognitive Reset Protocol: Inhale (4 units)... Hold (7 units)... Exhale (8 units)... 'External events are neutral; your interpretation is your choice.'");
+}
+
+let notificationTimeout;
+function showNotification(message) {
+    clearTimeout(notificationTimeout); // Clear previous timeout if new notification comes quickly
+
+    const notificationSystem = document.getElementById('notificationSystem');
+    const notification = document.createElement('div');
+    notification.className = 'notification';
+    notification.textContent = message;
+
+    // Clear existing notifications to only show one at a time, or manage a queue
+    notificationSystem.innerHTML = ''; // For single notification at a time
+    notificationSystem.appendChild(notification);
+
+    // Trigger reflow to ensure animation plays every time
+    void notification.offsetWidth;
+
+    notification.classList.add('show');
+
+    notificationTimeout = setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => {
+            notification.remove();
+        }, 400); // Match CSS transition duration
+    }, 5000); // Notification stays longer
+}
+
+function showWelcome() {
+    showNotification("🏛️ Welcome to LifeTalk Academy! Prepare for Stoic Protocol Training.");
+}
+
+// Helper to adjust color (e.g., for darker shade of stress color)
+function adjustColor(hex, lum) {
+    // validate hex string
+    hex = String(hex).replace(/[^0-9a-f]/gi, '');
+    if (hex.length < 6) {
+        hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+    }
+    lum = lum || 0;
+
+    // convert to decimal and change luminosity
+    var rgb = "#", c, i;
+    for (i = 0; i < 3; i++) {
+        c = parseInt(hex.substr(i * 2, 2), 16);
+        c = Math.round(Math.min(255, Math.max(0, c + (c * lum))));
+        rgb += ("00" + c.toString(16)).substr(c.toString(16).length);
+    }
+    return rgb;
+}
+
+
+// Initialize with random Stoic wisdom and update GNC balance on load
+window.onload = () => {
+    const randomQuote = stoicQuotes[Math.floor(Math.random() * stoicQuotes.length)];
+    showNotification(`💭 Stoic Wisdom: "${randomQuote}"`);
+    updateGNCBalance(0); // Display initial balance
+    updateStressLevelDisplay(); // Set initial stress level display
+};
+
+// Simulate live updates (more dynamic messages)
+setInterval(() => {
+    if (Math.random() < 0.2) { // Less frequent
+        const updates = [
+            "🌟 Global Network Sync: Sarah just achieved 'Sage' rank in communication protocol!",
+            `📈 Your Virtue Metrics indicate top 10% global performance!`,
+            "🏛️ Daily Challenge: Observe and detach from an external event for 1 hour. Earn 50 GNC.",
+            "💪 Achievement Unlocked: 'Immovable Post' - 7-day Stoic practice streak!",
+            "👥 Community Protocol Broadcast: Join live discussion on 'Emotional Contagion Mitigation' at 19:00 EST."
+        ];
+        const randomUpdate = updates[Math.floor(Math.random() * updates.length)];
+        showNotification(randomUpdate);
+    }
+}, 20000); // Every 20 seconds
