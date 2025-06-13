@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LifeTalk Academy - Stoic Wisdom Interface</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="interactive-header">
+        <div class="logo-interactive" onclick="showWelcome()">
+            <div class="stoic-symbol">
+                <span class="symbol-inner">🏛️</span>
+                <span class="symbol-pulse"></span>
+            </div>
+            <div>
+                <div class="title-main">LifeTalk Academy</div>
+                <div class="subtitle-text">"Master Your Inner Citadel"</div>
+            </div>
+        </div>
+        <div class="user-status">
+            <div class="live-indicator">
+                <div class="live-dot"></div>
+                <span>MARCUS_AI_SYSTEM ONLINE</span>
+            </div>
+            <div class="virtue-rank">🏆 Virtue Rank: Philosopher Ascendant</div>
+            <div class="gnc-balance">
+                <span class="gnc-icon">💎</span>
+                <span id="gncBalance">1250 GNC</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="conversation-arena" id="mainContainer">
+        <div class="scenario-selector active" id="scenarioSelector">
+            <div class="scenario-title">🎭 Choose Your Paradigm Shift</div>
+            <div class="intro-text">
+                Select a high-fidelity simulation to test your Stoic communication protocols under pressure.
+            </div>
+
+            <div class="scenario-cards">
+                <div class="scenario-card" onclick="selectScenario('angry-boss')" data-scenario="angry-boss">
+                    <div class="scenario-emoji">😠</div>
+                    <div class="scenario-name">The Furious Overseer</div>
+                    <div class="scenario-description">Your sector manager is experiencing a critical system overload regarding Q4 projections. Maintain equanimity.</div>
+                    <div class="difficulty-badge difficulty-hard">HIGH STAKES</div>
+                    <div class="scenario-reward">💰 +100 GNC</div>
+                </div>
+
+                <div class="scenario-card" onclick="selectScenario('defensive-partner')" data-scenario="defensive-partner">
+                    <div class="scenario-emoji">💔</div>
+                    <div class="scenario-name">Defensive Nexus Partner</div>
+                    <div class="scenario-description">Your primary bond feels data-breached and is entering a defensive loop. Navigate with empathetic logic.</div>
+                    <div class="difficulty-badge difficulty-medium">MODERATE</div>
+                    <div class="scenario-reward">💰 +75 GNC</div>
+                </div>
+
+                <div class="scenario-card" onclick="selectScenario('difficult-client')" data-scenario="difficult-client">
+                    <div class="scenario-emoji">📞</div>
+                    <div class="scenario-name">Rogue Client Node</div>
+                    <div class="scenario-description">A critical client is threatening protocol termination over a misaligned data stream. Engage with prudence and courage.</div>
+                    <div class="difficulty-badge difficulty-expert">CRITICAL</div>
+                    <div class="scenario-reward">💰 +150 GNC</div>
+                </div>
+
+                <div class="scenario-card" onclick="selectScenario('family-conflict')" data-scenario="family-conflict">
+                    <div class="scenario-emoji">👨‍👩‍👧‍👦</div>
+                    <div class="scenario-name">Kin-Unit Protocol Dispute</div>
+                    <div class="scenario-description">Kin-unit gathering has devolved into ideological conflict. Apply temperance and analytical detachment.</div>
+                    <div class="difficulty-badge difficulty-medium">MODERATE</div>
+                    <div class="scenario-reward">💰 +75 GNC</div>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-start" onclick="startRandomScenario()">🎲 Initiate Random Protocol</button>
+            </div>
+        </div>
+
+        <div class="interactive-conversation" id="conversationArea">
+            <div class="conversation-header">
+                <div class="conversation-info">
+                    <div class="character-avatar" id="characterAvatar"></div>
+                    <div class="character-info">
+                        <h3 id="characterName"></h3>
+                        <div class="character-mood" id="characterMood"></div>
+                    </div>
+                </div>
+                <div class="stress-meter">
+                    <span>Tension Flux:</span>
+                    <div class="stress-bar">
+                        <div class="stress-fill" id="stressFill"></div>
+                    </div>
+                    <span id="stressLevel"></span>
+                </div>
+            </div>
+
+            <div class="conversation-feed" id="conversationFeed">
+                </div>
+
+            <div class="response-options" id="responseOptions">
+                </div>
+
+            <div class="end-of-scenario-controls" id="endScenarioControls">
+                </div>
+        </div>
+    </div>
+
+    <div class="live-coaching" id="liveCoaching">
+        <div class="coach-header">
+            <div class="coach-avatar">M</div>
+            <div>
+                <div class="coach-name">MARCUS (AI LOGIC)</div>
+                <div class="coach-role">Live Guidance Protocol</div>
+            </div>
+        </div>
+        <div id="coachingMessage" class="coach-message">
+            Accessing Stoic Protocol: Their emotional output is external. Your internal state is your sole domain. Focus on your control parameters.
+        </div>
+    </div>
+
+    <div class="audio-controls">
+        <button class="audio-btn" id="voiceBtn" onclick="toggleVoiceMode()" title="Voice Input Protocol">
+            🎤
+        </button>
+        <button class="audio-btn" onclick="playBgMusic()" title="Ambient Network Soundscape">
+            🎵
+        </button>
+        <button class="audio-btn" onclick="takeBreath()" title="Cognitive Reset Protocol">
+            🧘‍♂️
+        </button>
+    </div>
+
+    <div class="progress-tracker">
+        <div class="tracker-title">
+            🏛️ Virtue Metric Tracker
+        </div>
+
+        <div class="virtue-progress">
+            <div class="virtue-name">
+                <span>🎯 Wisdom (Sophos)</span>
+                <span id="wisdomScore">73%</span>
+            </div>
+            <div class="virtue-bar">
+                <div class="virtue-fill wisdom-fill" id="wisdomBar" style="width: 73%;"></div>
+            </div>
+        </div>
+
+        <div class="virtue-progress">
+            <div class="virtue-name">
+                <span>⚖️ Justice (Dikaiosyne)</span>
+                <span id="justiceScore">68%</span>
+            </div>
+            <div class="virtue-bar">
+                <div class="virtue-fill justice-fill" id="justiceBar" style="width: 68%;"></div>
+            </div>
+        </div>
+
+        <div class="virtue-progress">
+            <div class="virtue-name">
+                <span>💪 Courage (Andreia)</span>
+                <span id="courageScore">81%</span>
+            </div>
+            <div class="virtue-bar">
+                <div class="virtue-fill courage-fill" id="courageBar" style="width: 81%;"></div>
+            </div>
+        </div>
+
+        <div class="virtue-progress">
+            <div class="virtue-name">
+                <span>🧘‍♂️ Temperance (Sophrosyne)</span>
+                <span id="temperanceScore">76%</span>
+            </div>
+            <div class="virtue-bar">
+                <div class="virtue-fill temperance-fill" id="temperanceBar" style="width: 76%;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="notification-system" id="notificationSystem">
+        </div>
+
+    <audio id="bgMusic" loop src="https://www.learningcontainer.com/wp-content/uploads/2020/02/Kalimba.mp3"></audio> <audio id="sfxButton" src="https://www.learningcontainer.com/wp-content/uploads/2020/02/Sample-Audio-File-500-KB.mp3" preload="auto"></audio> <audio id="sfxMessage" src="https://www.learningcontainer.com/wp-content/uploads/2020/02/Sample-Audio-File-500-KB.mp3" preload="auto"></audio> <audio id="sfxReward" src="https://www.learningcontainer.com/wp-content/uploads/2020/02/Sample-Audio-File-500-KB.mp3" preload="auto"></audio> <script src="script.js"></script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LifeTalk Academy - Stoic Wisdom Interface</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="interactive-header">
+        <div class="logo-interactive" onclick="showWelcome()">
+            <div class="stoic-symbol">
+                <span class="symbol-inner">🏛️</span>
+                <span class="symbol-pulse"></span>
+            </div>
+            <div>
+                <div class="title-main">LifeTalk Academy</div>
+                <div class="subtitle-text">"Master Your Inner Citadel"</div>
+            </div>
+        </div>
+        <div class="user-status">
+            <div class="live-indicator">
+                <div class="live-dot"></div>
+                <span>MARCUS_AI_SYSTEM ONLINE</span>
+            </div>
+            <div class="virtue-rank">🏆 Virtue Rank: Philosopher Ascendant</div>
+            <div class="gnc-balance">
+                <span class="gnc-icon">💎</span>
+                <span id="gncBalance">1250 GNC</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="conversation-arena" id="mainContainer">
+        <div class="scenario-selector active" id="scenarioSelector">
+            <div class="scenario-title">🎭 Choose Your Paradigm Shift</div>
+            <div class="intro-text">
+                Select a high-fidelity simulation to test your Stoic communication protocols under pressure.
+            </div>
+
+            <div class="scenario-cards">
+                <div class="scenario-card" onclick="selectScenario('angry-boss')" data-scenario="angry-boss">
+                    <div class="scenario-emoji">😠</div>
+                    <div class="scenario-name">The Furious Overseer</div>
+                    <div class="scenario-description">Your sector manager is experiencing a critical system overload regarding Q4 projections. Maintain equanimity.</div>
+                    <div class="difficulty-badge difficulty-hard">HIGH STAKES</div>
+                    <div class="scenario-reward">💰 +100 GNC</div>
+                </div>
+
+                <div class="scenario-card" onclick="selectScenario('defensive-partner')" data-scenario="defensive-partner">
+                    <div class="scenario-emoji">💔</div>
+                    <div class="scenario-name">Defensive Nexus Partner</div>
+                    <div class="scenario-description">Your primary bond feels data-breached and is entering a defensive loop. Navigate with empathetic logic.</div>
+                    <div class="difficulty-badge difficulty-medium">MODERATE</div>
+                    <div class="scenario-reward">💰 +75 GNC</div>
+                </div>
+
+                <div class="scenario-card" onclick="selectScenario('difficult-client')" data-scenario="difficult-client">
+                    <div class="scenario-emoji">📞</div>
+                    <div class="scenario-name">Rogue Client Node</div>
+                    <div class="scenario-description">A critical client is threatening protocol termination over a misaligned data stream. Engage with prudence and courage.</div>
+                    <div class="difficulty-badge difficulty-expert">CRITICAL</div>
+                    <div class="scenario-reward">💰 +150 GNC</div>
+                </div>
+
+                <div class="scenario-card" onclick="selectScenario('family-conflict')" data-scenario="family-conflict">
+                    <div class="scenario-emoji">👨‍👩‍👧‍👦</div>
+                    <div class="scenario-name">Kin-Unit Protocol Dispute</div>
+                    <div class="scenario-description">Kin-unit gathering has devolved into ideological conflict. Apply temperance and analytical detachment.</div>
+                    <div class="difficulty-badge difficulty-medium">MODERATE</div>
+                    <div class="scenario-reward">💰 +75 GNC</div>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-start" onclick="startRandomScenario()">🎲 Initiate Random Protocol</button>
+            </div>
+        </div>
+
+        <div class="interactive-conversation" id="conversationArea">
+            <div class="conversation-header">
+                <div class="conversation-info">
+                    <div class="character-avatar" id="characterAvatar"></div>
+                    <div class="character-info">
+                        <h3 id="characterName"></h3>
+                        <div class="character-mood" id="characterMood"></div>
+                    </div>
+                </div>
+                <div class="stress-meter">
+                    <span>Tension Flux:</span>
+                    <div class="stress-bar">
+                        <div class="stress-fill" id="stressFill"></div>
+                    </div>
+                    <span id="stressLevel"></span>
+                </div>
+            </div>
+
+            <div class="conversation-feed" id="conversationFeed">
+                </div>
+
+            <div class="response-options" id="responseOptions">
+                </div>
+
+            <div class="end-of-scenario-controls" id="endScenarioControls">
+                </div>
+        </div>
+    </div>
+
+    <div class="live-coaching" id="liveCoaching">
+        <div class="coach-header">
+            <div class="coach-avatar">M</div>
+            <div>
+                <div class="coach-name">MARCUS (AI LOGIC)</div>
+                <div class="coach-role">Live Guidance Protocol</div>
+            </div>
+        </div>
+        <div id="coachingMessage" class="coach-message">
+            Accessing Stoic Protocol: Their emotional output is external. Your internal state is your sole domain. Focus on your control parameters.
+        </div>
+    </div>
+
+    <div class="audio-controls">
+        <button class="audio-btn" id="voiceBtn" onclick="toggleVoiceMode()" title="Voice Input Protocol">
+            🎤
+        </button>
+        <button class="audio-btn" onclick="playBgMusic()" title="Ambient Network Soundscape">
+            🎵
+        </button>
+        <button class="audio-btn" onclick="takeBreath()" title="Cognitive Reset Protocol">
+            🧘‍♂️
+        </button>
+    </div>
+
+    <div class="progress-tracker">
+        <div class="tracker-title">
+            🏛️ Virtue Metric Tracker
+        </div>
+
+        <div class="virtue-progress">
+            <div class="virtue-name">
+                <span>🎯 Wisdom (Sophos)</span>
+                <span id="wisdomScore">73%</span>
+            </div>
+            <div class="virtue-bar">
+                <div class="virtue-fill wisdom-fill" id="wisdomBar" style="width: 73%;"></div>
+            </div>
+        </div>
+
+        <div class="virtue-progress">
+            <div class="virtue-name">
+                <span>⚖️ Justice (Dikaiosyne)</span>
+                <span id="justiceScore">68%</span>
+            </div>
+            <div class="virtue-bar">
+                <div class="virtue-fill justice-fill" id="justiceBar" style="width: 68%;"></div>
+            </div>
+        </div>
+
+        <div class="virtue-progress">
+            <div class="virtue-name">
+                <span>💪 Courage (Andreia)</span>
+                <span id="courageScore">81%</span>
+            </div>
+            <div class="virtue-bar">
+                <div class="virtue-fill courage-fill" id="courageBar" style="width: 81%;"></div>
+            </div>
+        </div>
+
+        <div class="virtue-progress">
+            <div class="virtue-name">
+                <span>🧘‍♂️ Temperance (Sophrosyne)</span>
+                <span id="temperanceScore">76%</span>
+            </div>
+            <div class="virtue-bar">
+                <div class="virtue-fill temperance-fill" id="temperanceBar" style="width: 76%;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="notification-system" id="notificationSystem">
+        </div>
+
+    <audio id="bgMusic" loop src="https://www.learningcontainer.com/wp-content/uploads/2020/02/Kalimba.mp3"></audio> <audio id="sfxButton" src="https://www.learningcontainer.com/wp-content/uploads/2020/02/Sample-Audio-File-500-KB.mp3" preload="auto"></audio> <audio id="sfxMessage" src="https://www.learningcontainer.com/wp-content/uploads/2020/02/Sample-Audio-File-500-KB.mp3" preload="auto"></audio> <audio id="sfxReward" src="https://www.learningcontainer.com/wp-content/uploads/2020/02/Sample-Audio-File-500-KB.mp3" preload="auto"></audio> <script src="script.js"></script>
+</body>
+</html>
